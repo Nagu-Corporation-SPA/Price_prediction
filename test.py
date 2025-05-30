@@ -1,10 +1,23 @@
-from utils import downloadTable, errorMetrics
+"""
+Filtra el DataFrame por el producto 'UB Atlantic TRIM-D 3-4 Lb FOB Miami' y devuelve  
+el promedio mensual de precios.
+    
+Args:
+    df
 
-import numpy as np
+Returns:
+    pd.df:con 'year_month' y 'price' mensual
+"""
 
-real = np.array([100, 200, 300])
-pred = np.array([110, 190, 310])
+def filtrar_ub(df: pd.DataFrame) -> pd.DataFrame:
 
-metrics = errorMetrics(real, pred)
-print("Métricas de error:", metrics)
+    df["date"] = pd.to_datetime(df["date"])
+    df = df[df["priceName"] == "UB Atlantic TRIM-D 3-4 Lb FOB Miami"].copy()
+    df["year_month"] = df["date"].dt.to_period("M").astype(str)
+    # Agrupar y calcular promedio mensual
+    serie_mensual = df.groupby("year_month")["price"].mean().reset_index()
+    return serie_mensual
+
+
+
 
