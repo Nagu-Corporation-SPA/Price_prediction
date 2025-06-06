@@ -3,8 +3,13 @@ from google.cloud import bigquery
 import pandas as pd
 import numpy as np
 from sklearn.metrics import mean_absolute_error, mean_squared_error, mean_absolute_percentage_error, root_mean_squared_error
-from pmdarima.arima import auto_arima
 from statsmodels.tsa.arima.model import ARIMA
+from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+import matplotlib.pyplot as plt
+import pmdarima
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+import warnings
+
 # Descargar Global prices as df
 '''
 Ejemplo de uso
@@ -111,7 +116,7 @@ def partir_train_test(df_trimestre: pd.Series, test_size: int = 3): # toma los �
     return train, test
 
 
-# Mehores hiperparámetros
+# Mehores hiperparámetros para ARIMA
 def grid_search_arima_aic(series, p_range, d_range, q_range):
     best_aic = np.inf
     best_order = None
@@ -132,7 +137,48 @@ def grid_search_arima_aic(series, p_range, d_range, q_range):
 
     return best_order, best_aic
 
+#Mejores hiperparámetros para SARIMA
+def grid_search_sarima(series, p_range, d_range, q_range, P_range, D_range, Q_range, s, verbose=False):
+    
+    best_aic = np.inf
+    best_order = None
+    best_seasonal_order = None
+    best_model = None
+    
+    warnings.filterwarnings("ignore")
+    
+    for p in p_range:
+        for d in d_range:
+            for q in q_range:
+                for P in P_range:
+                    for D in D_range:
+                        for Q in Q_range:
+                            order = (p, d, q)
+                            seasonal_order = (P, D, Q, s)
+                            try:
+                                model = SARIMAX(series,
+                                                order=order,
+                                                seasonal_order=seasonal_order,
+                                                enforce_stationarity=False,
+                                                enforce_invertibility=False)
+                                results = model.fit(disp=False)
+                                
+                                if results.aic < best_aic:
+                                    best_aic = results.aic
+                                    best_order = order
+                                    best_seasonal_order = seasonal_order
+                                    best_model = results
+                                if verbose:
+                                    print(f'Tested SARIMA{order}x{seasonal_order} - AIC={results.aic:.2f}')
+                            except:
+                                continue
 
+    return {
+        "order": best_order,
+        "seasonal_order": best_seasonal_order,
+        "aic": best_aic,
+        "model": best_model
+    }
 
 
 # Función para obtener las metricas de error
@@ -146,16 +192,13 @@ def errorMetrics(real:np.array,pred:np.array):
             "rmse":rmse,
             "mape":mape}
     
-    
+   
 
 ## Función para enventar la serie de tiempo
 #def slidingWindows(serie:np.array,windowSize:int):
 #    
 #
 #    return 0
-
-
-    
 
 
 
