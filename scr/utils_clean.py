@@ -47,6 +47,50 @@ def filtrar_ub_semanal(df: pd.DataFrame) -> pd.Series:
     return semanal
 
 
+# convierte df a promedio de precios semanales y crea features de retardos y medias móviles para el XGBoost
+def filtrar_y_crear_features_semanal(
+    df: pd.DataFrame,
+    weeks_lags: list[int]    = [1, 2, 3, 4],   # retardos en semanas
+    weeks_windows: list[int] = [4, 12],       # medias móviles en semanas
+    obs_per_week: int        = 2,             # 2 observaciones por semana
+) -> pd.DataFrame:
+    """
+    Filtra por 'UB Atlantic TRIM-D 3-4 Lb FOB Miami', agrupa semanalmente (promedio
+    de las 2 observaciones), y crea features de retardos y medias móviles donde
+    1 semana = `obs_per_week` datos.
+    """
+    # 1) Filtrado y agrupación semanal
+    df = df.copy()
+    df['date'] = pd.to_datetime(df['date'])
+    df = df[df['priceName']=='UB Atlantic TRIM-D 3-4 Lb FOB Miami']
+    df = df.set_index('date').sort_index()
+    
+    semanal = (
+        df['price']
+        .resample('W-MON')    # ISO‐semana, índice en lunes
+        .mean()               # promedio de las ~2 obs que caen en la semana
+        .dropna()
+        .rename('price')
+    )
+    
+    # 2) DataFrame para features
+    df_feat = semanal.to_frame()
+    
+    # opcional: features de calendario
+    df_feat['year']       = df_feat.index.year
+    df_feat['weekofyear'] = df_feat.index.isocalendar().week.astype(int)
+    
+    # 3) Retardos en semanas (con shift = semanas * obs_per_week)
+    for w in weeks_lags:
+        df_feat[f'lag_{w}wk'] = df_feat['price'].shift(w * obs_per_week)
+    
+    # 4) Medias móviles en semanas (ventana = semanas * obs_per_week)
+    for w in weeks_windows:
+        df_feat[f'ma_{w}wk'] = df_feat['price'].rolling(window=w * obs_per_week).mean()
+    
+    # 5) Limpiar NaNs
+    return df_feat.dropna()
+
 
 
 
