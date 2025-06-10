@@ -1,14 +1,7 @@
-import os
-from google.cloud import bigquery
+
 import pandas as pd
-import numpy as np
-from sklearn.metrics import mean_absolute_error, mean_squared_error, mean_absolute_percentage_error, root_mean_squared_error
-from statsmodels.tsa.arima.model import ARIMA
-from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
-import matplotlib.pyplot as plt
-import pmdarima
-from statsmodels.tsa.statespace.sarimax import SARIMAX
-import warnings
+
+
 
 
 # convierte df a promedio de precios mensuales
