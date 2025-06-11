@@ -1,12 +1,13 @@
 
 import numpy as np
-from sklearn.metrics import mean_squared_error, mean_absolute_error, mean_absolute_percentage_error
-from sklearn.metrics import root_mean_squared_error
+import os
 
 
 # Función para obtener las metricas de error
 def errorMetrics(real: np.array, pred: np.array):
     # Element-wise errors
+    if not os.path.exists("results/"):
+        os.makedirs("results/")
     errors = real - pred
     abs_errors = np.abs(errors)
     squared_errors = errors**2
@@ -25,14 +26,14 @@ def errorMetrics(real: np.array, pred: np.array):
     mape_std = np.std(percentage_errors)
 
     return {
-        "mse": mse,
-        "mse_std": mse_std,
-        "mae": mae,
-        "mae_std": mae_std,
-        "rmse": rmse,
-        "rmse_std": rmse_std,
-        "mape": mape,
-        "mape_std": mape_std
+        "mse": [mse],
+        "mse_std": [mse_std],
+        "mae": [mae],
+        "mae_std": [mae_std],
+        "rmse": [rmse],
+        "rmse_std": [rmse_std],
+        "mape": [mape],
+        "mape_std": [mape_std]
     }
    
 
