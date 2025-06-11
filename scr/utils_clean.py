@@ -18,7 +18,7 @@ def filtrar_ub_mensual(df: pd.DataFrame) -> pd.Series:
     df["year_month"] = pd.to_datetime(df["year_month"])
     df = df.set_index("year_month")
 
-    return df["price"]
+    return df["price"]/2.204
 
 # convierte df a promedio de precios semanales
 def filtrar_ub_semanal(df: pd.DataFrame) -> pd.Series:
