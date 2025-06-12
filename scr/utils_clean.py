@@ -23,28 +23,37 @@ def filtrar_ub_mensual(df: pd.DataFrame) -> pd.Series:
 
 
 # convierte df a promedio de precios semanales
-def filtrar_ub_semanal(df: pd.DataFrame) -> pd.Series:
+def filtrar_ub_semanal_iso(df: pd.DataFrame) -> pd.Series:
     """
     Filtra el DataFrame para el producto
     'UB Atlantic TRIM-D 3-4 Lb FOB Miami' y devuelve la serie
-    de precios promediados por semana ISO (lunes).
+    de precios promediados por semana ISO (año + semana).
 
-    • El índice resultante es 'W-MON'.
+    • El índice es un datetime correspondiente al lunes de la semana ISO.
     • Las semanas sin datos quedan como NaN.
     """
     df = df.copy()
     df["date"] = pd.to_datetime(df["date"])
-
+    
+    # Filtrar el producto deseado
     df = df[df["priceName"] == "UB Atlantic TRIM-D 3-4 Lb FOB Miami"].copy()
+    
+    # Extraer año y semana ISO
+    iso = df["date"].dt.isocalendar()
+    df["iso_year"] = iso["year"]
+    df["iso_week"] = iso["week"]
+    
+    # Calcular el lunes correspondiente a cada semana ISO
+    df["iso_monday"] = pd.to_datetime(df["iso_year"].astype(str) + "-" + df["iso_week"].astype(str) + "-1", format="%G-%V-%u")
 
-    # --- Agrupación por semana ISO (lunes) ----
+    # Agrupar por lunes de semana ISO
     semanal = (
-        df.set_index("date")
-          .groupby(pd.Grouper(freq="W-MON"))["price"]
+        df.groupby("iso_monday")["price"]
           .mean()
-          .asfreq("W-MON")          # fuerza semanas ausentes → NaN
+          .asfreq("W-MON")  # asegura presencia de semanas faltantes con NaN
           .sort_index()
     )
+    
     return semanal
 
 
