@@ -181,8 +181,6 @@ def preprocess_data_prophet(df:pd.DataFrame) -> pd.DataFrame:
     columns = list(df.columns)
     df = df.rename(columns={columns[0]: 'ds', columns[1]: 'y'})
     df['ds'] = pd.to_datetime(df['ds'])
-    df.set_index('ds', inplace=True)
-    df = df.resample('MS').mean().reset_index()
     return df
 
 
