@@ -9,7 +9,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-# MEJORES HIPERPARAMETROS ARIMA SARIMA
+# MEJORES HIPERPARAMETROS ARIMA SARIMA MENSUAL
 def buscar_hiperparametros_arima_sarima(series, 
                                  m=12, 
                                  seasonal=True, 
@@ -51,6 +51,43 @@ def buscar_hiperparametros_arima_sarima(series,
     )
     return modelo, modelo.order, modelo.seasonal_order, modelo.summary()
 
+
+
+
+# MEJORES HIPERPARAMETROS ARIMA SEMANAL
+def buscar_hiperparametros_arima_semanal(
+    serie,
+    max_p=5, max_d=2, max_q=5,
+    criterio='aic',
+    trace=True
+):
+    """
+    Busca los mejores hiperparámetros (p,d,q) para un modelo ARIMA SEMANAL usando auto_arima.
+
+    Parámetros:
+    - serie: Serie temporal semanal (ya estacionaria o preprocesada)
+    - max_p, max_d, max_q: rangos máximos para p, d, q
+    - criterio: 'aic' o 'bic'
+    - trace: si se desea mostrar el progreso
+
+    Retorna:
+    - modelo entrenado
+    - mejores hiperparámetros (p,d,q)
+    - resumen del modelo
+    """
+    modelo = auto_arima(
+        serie,
+        start_p=0, max_p=max_p,
+        start_d=0, max_d=max_d,
+        start_q=0, max_q=max_q,
+        seasonal=False,         # ← SOLO ARIMA
+        information_criterion=criterio,
+        trace=trace,
+        error_action='ignore',
+        suppress_warnings=True,
+        stepwise=True
+    )
+    return modelo, modelo.order, modelo.summary()
 
 
 

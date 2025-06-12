@@ -1,5 +1,6 @@
 
 import pandas as pd
+from statsmodels.tsa.stattools import adfuller, kpss
 
 
 
@@ -20,24 +21,84 @@ def filtrar_ub_mensual(df: pd.DataFrame) -> pd.Series:
 
     return df["price"]/2.204
 
+
 # convierte df a promedio de precios semanales
 def filtrar_ub_semanal(df: pd.DataFrame) -> pd.Series:
     """
-    Filtra el DataFrame por el producto 'UB Atlantic TRIM-D 3-4 Lb FOB Miami' y devuelve  
-    el promedio semanal de precios, agrupado por año y semana.
+    Filtra el DataFrame para el producto
+    'UB Atlantic TRIM-D 3-4 Lb FOB Miami' y devuelve la serie
+    de precios promediados por semana ISO (lunes).
+
+    • El índice resultante es 'W-MON'.
+    • Las semanas sin datos quedan como NaN.
     """
+    df = df.copy()
     df["date"] = pd.to_datetime(df["date"])
+
     df = df[df["priceName"] == "UB Atlantic TRIM-D 3-4 Lb FOB Miami"].copy()
 
-    df["iso_year"] = df["date"].dt.isocalendar().year
-    df["iso_week"] = df["date"].dt.isocalendar().week
-    semanal = df.groupby(["iso_year", "iso_week"])["price"].mean()
-
-    # Convertir a serie con índice de tipo fecha usando el lunes de cada semana ISO
-    semanal.index = [pd.to_datetime(f"{year}-W{int(week)}-1", format="%G-W%V-%u") for year, week in semanal.index]
-    semanal = semanal.sort_index()
-
+    # --- Agrupación por semana ISO (lunes) ----
+    semanal = (
+        df.set_index("date")
+          .groupby(pd.Grouper(freq="W-MON"))["price"]
+          .mean()
+          .asfreq("W-MON")          # fuerza semanas ausentes → NaN
+          .sort_index()
+    )
     return semanal
+
+
+# imputar nulos para el arima semanal
+def imputar_nulos_semanal(
+        serie: pd.Series,
+        metodo: str = "interpolate",        # 'interpolate' | 'ffill' | 'bfill'
+        devolver_flags: bool = False
+) -> pd.Series | tuple[pd.Series, pd.Series]:
+    """
+    Imputa los NaN de una serie semanal:
+
+        'interpolate' → interpolación lineal
+        'ffill'       → relleno hacia adelante
+        'bfill'       → relleno hacia atrás
+
+    Si devolver_flags=True, también devuelve una serie booleana
+    que marca con True los puntos imputados.
+    """
+    s = serie.copy()
+    flags = s.isna()             # marca posiciones vacías
+
+    if metodo == "interpolate":
+        s = s.interpolate()
+    elif metodo == "ffill":
+        s = s.ffill()
+    elif metodo == "bfill":
+        s = s.bfill()
+    else:
+        raise ValueError("metodo debe ser 'interpolate', 'ffill' o 'bfill'")
+
+    if devolver_flags:
+        return s, flags
+    return s
+
+
+
+# VOlver estacionaria la serie semanal
+def estacionarizar_arima(serie: pd.Series):
+    """
+    Aplica diferencias simples hasta que la serie sea estacionaria a d.
+    Devuelve la serie transformada y el valor óptimo de d.
+    """
+    for d in range(3):  #  d = 0, 1, 2
+        serie_diff = serie.diff(d).dropna() if d > 0 else serie.copy()
+        
+        adf_p = adfuller(serie_diff)[1]
+        kpss_p = kpss(serie_diff, nlags="auto")[1]
+        
+        if adf_p < 0.05 and kpss_p > 0.05:
+            print(f"Serie estacionaria con d = {d}")
+            return serie_diff, d
+    
+    raise ValueError("No se logró encontrar un valor de d que haga la serie estacionaria.")
 
 
 # convierte df a promedio de precios semanales y crea features de retardos y medias móviles para el XGBoost
