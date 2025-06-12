@@ -194,7 +194,14 @@ def partir_train_test(df_trimestre: pd.Series, test_size: int = 3): # toma los Ã
     test = df_trimestre.iloc[-test_size:]
     return train, test
 
-
+# Funcion para preprocesar los datos para Prophet
+def preprocess_data_prophet(df:pd.DataFrame) -> pd.DataFrame:
+    df = pd.DataFrame(df).reset_index()
+    df = df.rename(columns={'year_month': 'ds', 'price': 'y'})
+    df['ds'] = pd.to_datetime(df['ds'])
+    df.set_index('ds', inplace=True)
+    df = df.resample('MS').mean().reset_index()
+    return df
 
 
 
