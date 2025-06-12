@@ -19,7 +19,7 @@ def filtrar_ub_mensual(df: pd.DataFrame) -> pd.Series:
     df["year_month"] = pd.to_datetime(df["year_month"])
     df = df.set_index("year_month")
 
-    return df["price"]/2.204
+    return df["price"]
 
 
 # convierte df a promedio de precios semanales
@@ -206,7 +206,8 @@ def partir_train_test(df_trimestre: pd.Series, test_size: int = 3): # toma los Ã
 # Funcion para preprocesar los datos para Prophet
 def preprocess_data_prophet(df:pd.DataFrame) -> pd.DataFrame:
     df = pd.DataFrame(df).reset_index()
-    df = df.rename(columns={'year_month': 'ds', 'price': 'y'})
+    columns = list(df.columns)
+    df = df.rename(columns={columns[0]: 'ds', columns[1]: 'y'})
     df['ds'] = pd.to_datetime(df['ds'])
     df.set_index('ds', inplace=True)
     df = df.resample('MS').mean().reset_index()
