@@ -1,6 +1,7 @@
 from pmdarima import auto_arima
 import numpy as np
 import pandas as pd
+from xgboost import XGBRegressor
 
 from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.tsa.statespace.sarimax import SARIMAX
@@ -8,6 +9,9 @@ from pmdarima import auto_arima
 import warnings
 warnings.filterwarnings("ignore")
 
+import optuna
+from sklearn.model_selection import TimeSeriesSplit
+from sklearn.metrics import mean_squared_error
 
 # MEJORES HIPERPARAMETROS ARIMA SARIMA MENSUAL
 def buscar_hiperparametros_arima_sarima(series, 
@@ -91,3 +95,54 @@ def buscar_hiperparametros_arima_semanal(
 
 
 
+
+def buscar_hiperparametros_optuna(X, y, n_trials=50, cv_splits=3, random_state=42):
+    """
+    Busca los mejores hiperparámetros para XGBRegressor usando Optuna + TimeSeriesSplit.
+    
+    Solo devuelve los mejores hiperparámetros. NO entrena el modelo final ni calcula errores.
+
+    Parámetros:
+    - X, y: datos de entrenamiento
+    - n_trials: cantidad de combinaciones a probar
+    - cv_splits: cantidad de splits temporales
+    - random_state: semilla para reproducibilidad
+
+    Retorna:
+    - diccionario con los mejores hiperparámetros
+    """
+
+    def objective(trial):
+        params = {
+            "n_estimators": trial.suggest_int("n_estimators", 50, 300),
+            "max_depth": trial.suggest_int("max_depth", 2, 8),
+            "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
+            "subsample": trial.suggest_float("subsample", 0.5, 1.0),
+            "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 1.0),
+            "gamma": trial.suggest_float("gamma", 0, 2),
+            "reg_alpha": trial.suggest_float("reg_alpha", 0, 2),
+            "reg_lambda": trial.suggest_float("reg_lambda", 0, 2)
+        }
+
+        model = XGBRegressor(**params, random_state=random_state, objective='reg:squarederror')
+
+        tscv = TimeSeriesSplit(n_splits=cv_splits)
+        rmse_list = []
+
+        for train_idx, val_idx in tscv.split(X):
+            X_train, X_val = X.iloc[train_idx], X.iloc[val_idx]
+            y_train, y_val = y.iloc[train_idx], y.iloc[val_idx]
+
+            model.fit(X_train, y_train)
+            preds = model.predict(X_val)
+            mse = mean_squared_error(y_val, preds)
+            rmse = np.sqrt(mse)
+            rmse_list.append(rmse)
+
+        return np.mean(rmse_list)
+
+    # Ejecutar la optimización
+    study = optuna.create_study(direction="minimize", sampler=optuna.samplers.TPESampler(seed=random_state))
+    study.optimize(objective, n_trials=n_trials)
+
+    return study.best_params
