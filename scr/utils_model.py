@@ -12,6 +12,7 @@ warnings.filterwarnings("ignore")
 import optuna
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import mean_squared_error
+import itertools
 
 # MEJORES HIPERPARAMETROS ARIMA SARIMA MENSUAL
 def buscar_hiperparametros_arima_sarima(series, 
@@ -146,3 +147,51 @@ def buscar_hiperparametros_optuna(X, y, n_trials=50, cv_splits=3, random_state=4
     study.optimize(objective, n_trials=n_trials)
 
     return study.best_params
+
+
+
+def gridSearchSarimax(trainingData,seasonality:int):
+    p = d = q = range(0, 2)
+    pdq = list(itertools.product(p, d, q))
+    seasonal_pdq = [(x[0], x[1], x[2], seasonality) for x in list(itertools.product(p, d, q))]
+    resultAic = None
+    pParameters = 0
+    dParameters = 0
+    qParameters = 0
+    spParameters = 0
+    sdParameters = 0
+    sqParameters = 0
+    bestModel = None
+
+    for param in pdq:
+        for param_seasonal in seasonal_pdq:
+            try:
+                mod = SARIMAX(trainingData,
+                                        order=param,
+                                        seasonal_order=param_seasonal,
+                                        enforce_stationarity=False,
+                                        enforce_invertibility=False)
+                results = mod.fit()
+
+                if bestModel == None or results.aic < resultAic:
+                    resultAic = results.aic
+                    pParameters = param[0]
+                    dParameters = param[1]
+                    qParameters = param[2]
+                    spParameters = param_seasonal[0]
+                    sdParameters = param_seasonal[1]
+                    sqParameters = param_seasonal[2]
+                    bestModel = results
+            except:
+                continue
+
+    print("Best AIC: ", resultAic)
+    print("Best pParameter: ", pParameters)
+    print("Best dParameter: ", dParameters)
+    print("Best qParameter: ", qParameters)
+    print("Best spParameter: ", spParameters)
+    print("Best sdParameter: ", sdParameters)
+    print("Best sqParameter: ", sqParameters)
+    bestModel.summary()
+
+    return bestModel, resultAic, pParameters, dParameters, qParameters, spParameters, sdParameters, sqParameters,seasonality
